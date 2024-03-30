@@ -1,6 +1,6 @@
 from loader.data_loader import PMEmoDataset
 import torch.utils.data as data
-# Note that data loader and model have not yet been tested. I've simply put them there as placeholders. 
+from model import spectroedanet
 
 # Usage example
 root_dir = "1-dataset"
@@ -14,6 +14,10 @@ print(spectrogram.shape) # torch.Size([32, 1, 369, 496])
 print(eda_data.shape) # torch.Size([32, 10, 896])
 print(arousal_label.shape) # torch.Size([32, 10])
 print(valence_label.shape) # torch.Size([32, 10])
+
+# TODO: Implement the training loop
+model = spectroedanet.SpectroEDANet()
+
 
 
 

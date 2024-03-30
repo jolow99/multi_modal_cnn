@@ -91,34 +91,3 @@ class PMEmoDataset(data.Dataset):
             music_id = filename.split("-")[0]
             music_ids.add(music_id)
         return sorted(list(music_ids))
-
-    def custom_collate(batch):
-        spectrograms = []
-        eda_data = []
-        arousal_labels = []
-        valence_labels = []
-        
-        max_subjects = 10
-        for sample in batch:
-            spectrograms.append(sample[0])
-            eda_data.append(sample[1])
-            arousal_labels.append(sample[2])
-            valence_labels.append(sample[3])
-            max_subjects = max(max_subjects, len(sample[2]))
-        
-        # Pad arousal and valence labels
-        padded_arousal_labels = []
-        padded_valence_labels = []
-        for labels in arousal_labels:
-            padded_labels = np.pad(labels, (0, max_subjects - len(labels)), mode='constant')
-            padded_arousal_labels.append(padded_labels)
-        for labels in valence_labels:
-            padded_labels = np.pad(labels, (0, max_subjects - len(labels)), mode='constant')
-            padded_valence_labels.append(padded_labels)
-        
-        spectrograms = torch.stack(spectrograms)
-        eda_data = torch.tensor(eda_data, dtype=torch.float32)
-        arousal_labels = torch.tensor(padded_arousal_labels, dtype=torch.float32)
-        valence_labels = torch.tensor(padded_valence_labels, dtype=torch.float32)
-        
-        return spectrograms, eda_data, arousal_labels, valence_labels
