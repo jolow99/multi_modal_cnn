@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from loader.data_loader import PMEmoDataset
+<<<<<<< HEAD
 import torch.utils.data as data_utils
+=======
+import torch.utils.data as torchData
+>>>>>>> 36838e9706031c495a13bfb3f0c1c33fdba926b8
 from model import spectroedanet
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score
@@ -33,10 +37,17 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
     print(f"Fold {fold + 1}")
 
     # Create data loaders for the current fold
+<<<<<<< HEAD
     train_sampler = data_utils.SubsetRandomSampler(train_idx)
     val_sampler = data_utils.SubsetRandomSampler(val_idx)
     train_loader = data_utils.DataLoader(dataset, batch_size=32, sampler=train_sampler)
     val_loader = data_utils.DataLoader(dataset, batch_size=32, sampler=val_sampler)
+=======
+    train_sampler = torchData.SubsetRandomSampler(train_idx)
+    val_sampler = torchData.SubsetRandomSampler(val_idx)
+    train_loader = torchData.DataLoader(dataset, batch_size=32, sampler=train_sampler)
+    val_loader = torchData.DataLoader(dataset, batch_size=32, sampler=val_sampler)
+>>>>>>> 36838e9706031c495a13bfb3f0c1c33fdba926b8
 
     # Reset the model weights
     model.apply(lambda m: isinstance(m, nn.Linear) and m.reset_parameters())
