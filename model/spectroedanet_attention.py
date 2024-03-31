@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-
+from model.Attention_module import NONLocal1D, CALayer1D
 
 class SpectroEDANet(nn.Module):
     def __init__(self):
         super(SpectroEDANet, self).__init__()
+        
         
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
@@ -16,9 +17,10 @@ class SpectroEDANet(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten()
+#             nn.MaxPool2d(2),
+#             nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.BatchNorm1d(1460224)
         )
         
         # EDA CNN
@@ -28,10 +30,17 @@ class SpectroEDANet(nn.Module):
             nn.MaxPool1d(2),
             nn.Conv1d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool1d(2),
-            nn.AdaptiveAvgPool1d(1),
-            nn.Flatten()
+#             nn.MaxPool1d(2),
+#             nn.AdaptiveAvgPool1d(1),
+#             nn.Flatten()
+            nn.BatchNorm1d(128)
         )
+          
+        
+        self.inter_channel = 128
+        # Attention Mechanism
+        self.Non_local = NONLocal1D(in_feat=self.inter_channel, inter_feat=self.inter_channel // 2)
+        self.Attention = CALayer1D(channel=self.inter_channel)
         
         # Fusion layer
         self.fusion = nn.Linear(128 + 128, 256)
@@ -42,10 +51,16 @@ class SpectroEDANet(nn.Module):
     
     def forward(self, spectrogram, eda_data):
         # Spectrogram feature extraction
+        # Using the attention mechanism
         spec_features = self.spec_cnn(spectrogram)
+        spec_features = self.Non_local(spec_features)
+        spec_features = self.Attention(spec_features)
         
         # EDA feature extraction
+        # Using the attention mechanism
         eda_features = self.eda_cnn(eda_data)
+        eda_features = self.Non_local(eda_features)
+        eda_features = self.Attention(eda_features)
         
         # Fusion of spectrogram and EDA features
         fused_features = torch.cat((spec_features, eda_features), dim=1)
