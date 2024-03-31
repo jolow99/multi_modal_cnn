@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from loader.data_loader import PMEmoDataset
-import torch.utils.data as data
+import torch.utils.data as torchData
 from model import spectroedanet
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score
@@ -28,22 +28,15 @@ num_folds = 5
 # Create a KFold object
 kfold = KFold(n_splits=num_folds, shuffle=True)
 
-# TODO: Fix error after first fold
-# Traceback (most recent call last):
-#   File "/Users/jolow/coding/multi_modal_cnn/main.py", line 36, in <module>
-#     train_sampler = data.SubsetRandomSampler(train_idx)
-#                     ^^^^^^^^^^^^^^^^^^^^^^^^
-# AttributeError: 'list' object has no attribute 'SubsetRandomSampler'
-
 # Iterate over the folds
 for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
     print(f"Fold {fold + 1}")
 
     # Create data loaders for the current fold
-    train_sampler = data.SubsetRandomSampler(train_idx)
-    val_sampler = data.SubsetRandomSampler(val_idx)
-    train_loader = data.DataLoader(dataset, batch_size=32, sampler=train_sampler)
-    val_loader = data.DataLoader(dataset, batch_size=32, sampler=val_sampler)
+    train_sampler = torchData.SubsetRandomSampler(train_idx)
+    val_sampler = torchData.SubsetRandomSampler(val_idx)
+    train_loader = torchData.DataLoader(dataset, batch_size=32, sampler=train_sampler)
+    val_loader = torchData.DataLoader(dataset, batch_size=32, sampler=val_sampler)
 
     # Reset the model weights
     model.apply(lambda m: isinstance(m, nn.Linear) and m.reset_parameters())
