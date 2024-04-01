@@ -5,3 +5,6 @@ model/__pycache__/
 .idea
 PMEmo2019
 dataset/wav
+__pycache__
+*.arff
+dataset/static_features.csv
