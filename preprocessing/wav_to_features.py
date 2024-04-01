@@ -19,11 +19,11 @@ def get_music_features(wav_dir, dist_file, opensmile_dir):
         print(f"completed {i+1}/{len(wav)} wav files")
 
 
-def wav_to_features():
+def wav_to_features(normalize=True):
     static_features_file = "static_features.arff"
-    get_music_features("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/wav",
-                       static_features_file,
-                       "/Users/joel-tay/Documents/opensmile")
+    # get_music_features("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/wav",
+    #                    static_features_file,
+    #                    "/Users/joel-tay/Documents/opensmile")
     res = arff.load(open(static_features_file, "r"))
     data = res['data']
     cols = list(map(lambda t: t[0], res['attributes']))
@@ -32,7 +32,13 @@ def wav_to_features():
     df = df.drop(columns=['class'])
     df['name'] = df['name'].map(lambda s: int(s[:-4]))  # remove .wav and cast to int
     df.rename(columns={'name': 'musicId'}, inplace=True)
-    df.to_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv", index=False)
+    df.set_index("musicId", inplace=True)
+
+    if normalize:
+        # do z-score normalization
+        df = (df-df.mean())/df.std()
+
+    df.to_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv", index=True)
 
 
 if __name__ == "__main__":
