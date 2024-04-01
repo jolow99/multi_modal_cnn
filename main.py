@@ -11,15 +11,21 @@ root_dir = "dataset"
 dataset = PMEmoDataset(root_dir)
 
 # Instantiate the model
-model = spectroedanet.SpectroEDANet()
+usesSpectrogram = True
+usesEDA = True
+usesMusic = False
+predictsArousal = True
+predictsValence = True
+
+model = spectroedanet.SpectroEDANet(usesSpectrogram, usesEDA, usesMusic, predictsArousal, predictsValence)
 
 # Define loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 10
-device = torch.device("mps")
+num_epochs = 3
+device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 # Define the number of folds for cross-validation
@@ -53,11 +59,16 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
 
             optimizer.zero_grad()
 
-            arousal_output, valence_output = model(spectrogram, eda_data)
+            output = model(spectrogram, eda_data)
 
-            arousal_loss = criterion(arousal_output, arousal_label)
-            valence_loss = criterion(valence_output, valence_label)
-            loss = arousal_loss + valence_loss
+            if model.predictsArousal and model.predictsValence:
+                arousal_loss = criterion(output[0], arousal_label)
+                valence_loss = criterion(output[1], valence_label)
+                loss = arousal_loss + valence_loss
+            elif model.predictsArousal:
+                loss = criterion(output, arousal_label)
+            elif model.predictsValence:
+                loss = criterion(output, valence_label)
 
             loss.backward()
             optimizer.step()
@@ -71,6 +82,7 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
         valence_preds = []
         arousal_labels = []
         valence_labels = []
+
         with torch.no_grad():
             for data in val_loader:
                 spectrogram, eda_data, arousal_label, valence_label = data
@@ -79,29 +91,54 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
                 arousal_label = arousal_label.to(device)
                 valence_label = valence_label.to(device)
 
-                arousal_output, valence_output = model(spectrogram, eda_data)
 
-                arousal_loss = criterion(arousal_output, arousal_label)
-                valence_loss = criterion(valence_output, valence_label)
-                val_loss += arousal_loss.item() + valence_loss.item()
 
-                arousal_preds.extend(arousal_output.cpu().numpy())
-                valence_preds.extend(valence_output.cpu().numpy())
-                arousal_labels.extend(arousal_label.cpu().numpy())
-                valence_labels.extend(valence_label.cpu().numpy())
+                if model.predictsArousal and model.predictsValence:
+                    arousal_output, valence_output = model(spectrogram, eda_data)
+                    arousal_loss = criterion(arousal_output, arousal_label)
+                    valence_loss = criterion(valence_output, valence_label)
+                    val_loss += arousal_loss.item() + valence_loss.item()
+                    arousal_preds.extend(arousal_output.cpu().numpy())
+                    valence_preds.extend(valence_output.cpu().numpy())
+                    arousal_labels.extend(arousal_label.cpu().numpy())
+                    valence_labels.extend(valence_label.cpu().numpy())
+                    arousal_mse = mean_squared_error(arousal_labels, arousal_preds)
+                    valence_mse = mean_squared_error(valence_labels, valence_preds)
+                    arousal_r2 = r2_score(arousal_labels, arousal_preds)
+                    valence_r2 = r2_score(valence_labels, valence_preds)
 
-        # Calculate evaluation metrics
-        arousal_mse = mean_squared_error(arousal_labels, arousal_preds)
-        valence_mse = mean_squared_error(valence_labels, valence_preds)
-        arousal_r2 = r2_score(arousal_labels, arousal_preds)
-        valence_r2 = r2_score(valence_labels, valence_preds)
-
-        print(f"Epoch [{epoch + 1}/{num_epochs}], "
-              f"Train Loss: {running_loss / len(train_loader):.4f}, "
-              f"Val Loss: {val_loss / len(val_loader):.4f}, "
-              f"Arousal MSE: {arousal_mse:.4f}, "
-              f"Valence MSE: {valence_mse:.4f}, "
-              f"Arousal R2: {arousal_r2:.4f}, "
-              f"Valence R2: {valence_r2:.4f}")
+                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                          f"Arousal MSE: {arousal_mse:.4f}, "
+                          f"Valence MSE: {valence_mse:.4f}, "
+                          f"Arousal R2: {arousal_r2:.4f}, "
+                          f"Valence R2: {valence_r2:.4f}")
+                    
+                elif model.predictsArousal:
+                    output = model(spectrogram, eda_data)
+                    val_loss = criterion(output, arousal_label)
+                    arousal_preds.extend(output.cpu().numpy())
+                    arousal_labels.extend(arousal_label.cpu().numpy())
+                    mse = mean_squared_error(arousal_labels, arousal_preds)
+                    r2 = r2_score(arousal_labels, arousal_preds)
+                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                          f"MSE: {mse:.4f}, "
+                          f"R2: {r2:.4f}")
+                    
+                elif model.predictsValence:
+                    output = model(spectrogram, eda_data)
+                    val_loss = criterion(output, valence_label)
+                    valence_preds.extend(output.cpu().numpy())
+                    valence_labels.extend(valence_label.cpu().numpy())
+                    mse = mean_squared_error(valence_labels, valence_preds)
+                    r2 = r2_score(valence_labels, valence_preds)
+                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                          f"MSE: {mse:.4f}, "
+                          f"R2: {r2:.4f}")
 
 print("Training finished.")
