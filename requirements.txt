@@ -7,3 +7,4 @@ pandas
 pillow
 scipy
 scikit-learn
+pydub
