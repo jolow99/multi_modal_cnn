@@ -71,12 +71,15 @@ class SpectroEDANet(nn.Module):
         eda_features = self.Attention1D(eda_features)
         
         #eda_features = eda_features.unsqueeze(2)  # Add a new dimension
-
         
-        # Fusion of spectrogram and EDA features
-        #fused_features = torch.cat((spec_features, eda_features), dim=1)        
-        #fused_features = torch.cat((spec_features, eda_features), dim=2)
-        fused_features = torch.cat((spec_features, eda_features), dim=1)
+        eda_features_reshaped = eda_features.unsqueeze(2).expand(-1, -1, 92, -1)
+        print(spec_features.size())
+        print(eda_features_reshaped.size())
+        fused_features = torch.cat((spec_features, eda_features_reshaped), dim=3)
+
+
+        # Fusion of spectrogram and EDA features       
+        # fused_features = torch.cat((spec_features, eda_features), dim=1)
         fused_features = self.fusion(fused_features)
         
         # Regression outputs
