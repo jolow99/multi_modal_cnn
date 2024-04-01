@@ -2,11 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from loader.data_loader import PMEmoDataset
-<<<<<<< HEAD
-import torch.utils.data as data_utils
-=======
 import torch.utils.data as torchData
->>>>>>> 36838e9706031c495a13bfb3f0c1c33fdba926b8
 from model import spectroedanet
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score
