@@ -11,14 +11,16 @@ root_dir = "dataset"
 dataset = PMEmoDataset(root_dir)
 
 # Instantiate the model
-usesSpectrogram = False
-usesEDA = True
+usesSpectrogram = True
+usesEDA = False
 usesMusic = False
 predictsArousal = True
 predictsValence = False
 
 # Ensure that predictArousal and predictValence are not both False
 assert predictsArousal or predictsValence
+# Ensure that at least one of usesSpectrogram, usesEDA, and usesMusic is True
+assert usesSpectrogram or usesEDA or usesMusic
 
 model = spectroedanet.SpectroEDANet(usesSpectrogram, usesEDA, usesMusic, predictsArousal, predictsValence)
 
@@ -27,7 +29,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 3
+num_epochs = 10
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
@@ -44,8 +46,8 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
     # Create data loaders for the current fold
     train_sampler = torchData.SubsetRandomSampler(train_idx)
     val_sampler = torchData.SubsetRandomSampler(val_idx)
-    train_loader = torchData.DataLoader(dataset, batch_size=32, sampler=train_sampler)
-    val_loader = torchData.DataLoader(dataset, batch_size=32, sampler=val_sampler)
+    train_loader = torchData.DataLoader(dataset, batch_size=16, sampler=train_sampler)
+    val_loader = torchData.DataLoader(dataset, batch_size=16, sampler=val_sampler)
 
     # Reset the model weights
     model.apply(lambda m: isinstance(m, nn.Linear) and m.reset_parameters())
@@ -111,43 +113,51 @@ for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
                     valence_preds.extend(valence_output.cpu().numpy())
                     arousal_labels.extend(arousal_label.cpu().numpy())
                     valence_labels.extend(valence_label.cpu().numpy())
-                    arousal_mse = root_mean_squared_error(arousal_labels, arousal_preds)
-                    valence_mse = root_mean_squared_error(valence_labels, valence_preds)
-                    arousal_r2 = r2_score(arousal_labels, arousal_preds)
-                    valence_r2 = r2_score(valence_labels, valence_preds)
-
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Arousal RMSE: {arousal_mse:.4f}, "
-                          f"Valence RMSE: {valence_mse:.4f}, "
-                          f"Arousal R2: {arousal_r2:.4f}, "
-                          f"Valence R2: {valence_r2:.4f}")
                     
                 elif model.predictsArousal:
                     output = model(spectrogram, eda_data)
                     val_loss = criterion(output, arousal_label)
                     arousal_preds.extend(output.cpu().numpy())
                     arousal_labels.extend(arousal_label.cpu().numpy())
-                    mse = root_mean_squared_error(arousal_labels, arousal_preds)
-                    r2 = r2_score(arousal_labels, arousal_preds)
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Arousal RMSE: {mse:.4f}, "
-                          f"Arousal R2: {r2:.4f}")
                     
                 elif model.predictsValence:
                     output = model(spectrogram, eda_data)
                     val_loss = criterion(output, valence_label)
                     valence_preds.extend(output.cpu().numpy())
                     valence_labels.extend(valence_label.cpu().numpy())
-                    mse = root_mean_squared_error(valence_labels, valence_preds)
-                    r2 = r2_score(valence_labels, valence_preds)
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Valence RMSE: {mse:.4f}, "
-                          f"Valence R2: {r2:.4f}")
+
+                    
+            # Calculate and print losses and metrics
+            if model.predictsArousal and model.predictsValence:
+                arousal_mse = root_mean_squared_error(arousal_labels, arousal_preds)
+                valence_mse = root_mean_squared_error(valence_labels, valence_preds)
+                arousal_r2 = r2_score(arousal_labels, arousal_preds)
+                valence_r2 = r2_score(valence_labels, valence_preds)
+
+                print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                    f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                    f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                    f"Arousal RMSE: {arousal_mse:.4f}, "
+                    f"Valence RMSE: {valence_mse:.4f}, "
+                    f"Arousal R2: {arousal_r2:.4f}, "
+                    f"Valence R2: {valence_r2:.4f}")
+
+            elif model.predictsArousal:
+                mse = root_mean_squared_error(arousal_labels, arousal_preds)
+                r2 = r2_score(arousal_labels, arousal_preds)
+                print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                    f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                    f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                    f"Arousal RMSE: {mse:.4f}, "
+                    f"Arousal R2: {r2:.4f}")
+
+            elif model.predictsValence:
+                mse = root_mean_squared_error(valence_labels, valence_preds)
+                r2 = r2_score(valence_labels, valence_preds)
+                print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                    f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                    f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                    f"Valence RMSE: {mse:.4f}, "
+                    f"Valence R2: {r2:.4f}")
 
 print("Training finished.")
