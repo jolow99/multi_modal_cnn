@@ -2,9 +2,13 @@ import torch
 import torch.nn as nn
 
 class SpectroEDANet(nn.Module):
-    def __init__(self, isArousal=True):
+    def __init__(self, usesSpectrogram=True, usesEDA=True, usesMusic=True, predictsArousal=True, predictsValence=True):
         super(SpectroEDANet, self).__init__()
-        self.isArousal = True
+        self.usesSpectrogram = usesSpectrogram
+        self.usesEDA = usesEDA
+        self.usesMusic = usesMusic
+        self.predictsArousal = predictsArousal
+        self.predictsValence = predictsValence
         
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
@@ -36,11 +40,11 @@ class SpectroEDANet(nn.Module):
         # Fusion layer
         self.fusion = nn.Linear(128 + 128, 256)
         
-        # # Output layers
-        # self.arousal_output = nn.Linear(256, 10)
-        # self.valence_output = nn.Linear(256, 10)
+        # Multi-Task Output layers
+        self.arousal_output = nn.Linear(256, 10)
+        self.valence_output = nn.Linear(256, 10)
 
-        # Output layer
+        # Single-Task Output layer
         self.output = nn.Sequential(
             nn.Linear(256, 128),
             nn.ReLU(inplace=True),
@@ -50,19 +54,28 @@ class SpectroEDANet(nn.Module):
     
     def forward(self, spectrogram, eda_data):
         # Spectrogram feature extraction
-        spec_features = self.spec_cnn(spectrogram)
+        if self.usesSpectrogram:
+            spec_features = self.spec_cnn(spectrogram)
         
         # EDA feature extraction
-        eda_features = self.eda_cnn(eda_data)
+        if self.usesEDA:
+            eda_features = self.eda_cnn(eda_data)
         
         # Fusion of spectrogram and EDA features
-        fused_features = torch.cat((spec_features, eda_features), dim=1)
-        fused_features = self.fusion(fused_features)
+        if self.usesSpectrogram and self.usesEDA:
+            fused_features = torch.cat((spec_features, eda_features), dim=1)
+            fused_features = self.fusion(fused_features)
+        elif self.usesSpectrogram and not self.usesEDA:
+            fused_features = spec_features
+        elif self.usesEDA and not self.usesSpectrogram:
+            fused_features = eda_features
 
-        return self.output(fused_features)
-        
-        # Regression outputs
-        # arousal_output = self.arousal_output(fused_features)
-        # valence_output = self.valence_output(fused_features)
-        
-        # return arousal_output, valence_output
+        # Output layers    
+        if self.predictsArousal and self.predictsValence:
+            arousal_output = self.arousal_output(fused_features)
+            valence_output = self.valence_output(fused_features)
+            return arousal_output, valence_output
+        elif self.predictsArousal and not self.predictsValence:
+            return self.output(fused_features)
+        elif not self.predictsArousal and self.predictsValence:
+            return self.output(fused_features)
