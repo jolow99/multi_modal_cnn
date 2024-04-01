@@ -86,9 +86,10 @@ class PMEmoDataset(data.Dataset):
         # opensmile music features
         music_df = pd.read_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv",
                                index_col="musicId")
-        music_features = music_df.loc[music_df.index == 1000].iloc[0] # type pandas Series
+        music_features = music_df.loc[music_df.index == 1000].iloc[0] # here is pandas type series
+        music_vector = torch.tensor(np.array(music_features))
 
-        return spectrogram, eda_data, arousal_labels, valence_labels, music_features
+        return spectrogram, eda_data, arousal_labels, valence_labels, music_vector
 
     def _get_music_ids(self):
         music_ids = set()
