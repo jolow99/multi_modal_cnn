@@ -252,6 +252,7 @@ class NONLocal2D(nn.Module):
 
     def forward(self, x):
         ## divide feature map into 4 part
+        print(x.shape)
         batch_size, C, H, W = x.shape
         H1 = int(H / 2)
         W1 = int(W / 2)
@@ -282,6 +283,7 @@ class NONLocal1D(nn.Module):
             NONLocalBlock1D(in_channels=in_feat, inter_channels=inter_feat, sub_sample=sub_sample, bn_layer=bn_layer))
 
     def forward(self, x):
+        print(x.shape)
         batch_size, C, L = x.shape
         L1 = int(L / 3)
         L2 = int(2*L / 3)

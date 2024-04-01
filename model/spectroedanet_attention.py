@@ -1,10 +1,15 @@
 import torch
 import torch.nn as nn
-from model.Attention_module import NONLocal1D, CALayer1D
+from model.Attention_module import NONLocal1D, CALayer1D, NONLocal2D, CALayer2D
 
 class SpectroEDANet(nn.Module):
-    def __init__(self):
+    def __init__(self, usesSpectrogram=True, usesEDA=True, usesMusic=True, predictsArousal=True, predictsValence=True):
         super(SpectroEDANet, self).__init__()
+        self.usesSpectrogram = usesSpectrogram
+        self.usesEDA = usesEDA
+        self.usesMusic = usesMusic
+        self.predictsArousal = predictsArousal
+        self.predictsValence = predictsValence
         
         
         # Spectrogram CNN
@@ -17,10 +22,10 @@ class SpectroEDANet(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-#             nn.MaxPool2d(2),
-#             nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.BatchNorm1d(1460224)
+#            nn.MaxPool2d(2),
+#            nn.AdaptiveAvgPool2d((1, 1)),
+#            nn.Flatten(),
+            nn.BatchNorm2d(128)
         )
         
         # EDA CNN
@@ -30,17 +35,20 @@ class SpectroEDANet(nn.Module):
             nn.MaxPool1d(2),
             nn.Conv1d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-#             nn.MaxPool1d(2),
-#             nn.AdaptiveAvgPool1d(1),
-#             nn.Flatten()
+#            nn.MaxPool1d(2),
+#            nn.AdaptiveAvgPool1d(1),
+#            nn.Flatten()
             nn.BatchNorm1d(128)
         )
           
         
         self.inter_channel = 128
         # Attention Mechanism
-        self.Non_local = NONLocal1D(in_feat=self.inter_channel, inter_feat=self.inter_channel // 2)
-        self.Attention = CALayer1D(channel=self.inter_channel)
+        self.Non_local1D = NONLocal1D(in_feat=self.inter_channel, inter_feat=self.inter_channel // 2)
+        self.Attention1D = CALayer1D(channel=self.inter_channel)
+        self.Non_local2D = NONLocal2D(in_feat=self.inter_channel, inter_feat=self.inter_channel // 2)
+        self.Attention2D = CALayer2D(channel=self.inter_channel)
+        
         
         # Fusion layer
         self.fusion = nn.Linear(128 + 128, 256)
@@ -53,16 +61,21 @@ class SpectroEDANet(nn.Module):
         # Spectrogram feature extraction
         # Using the attention mechanism
         spec_features = self.spec_cnn(spectrogram)
-        spec_features = self.Non_local(spec_features)
-        spec_features = self.Attention(spec_features)
+        spec_features = self.Non_local2D(spec_features)
+        spec_features = self.Attention2D(spec_features)
         
         # EDA feature extraction
         # Using the attention mechanism
         eda_features = self.eda_cnn(eda_data)
-        eda_features = self.Non_local(eda_features)
-        eda_features = self.Attention(eda_features)
+        eda_features = self.Non_local1D(eda_features)
+        eda_features = self.Attention1D(eda_features)
+        
+        #eda_features = eda_features.unsqueeze(2)  # Add a new dimension
+
         
         # Fusion of spectrogram and EDA features
+        #fused_features = torch.cat((spec_features, eda_features), dim=1)        
+        #fused_features = torch.cat((spec_features, eda_features), dim=2)
         fused_features = torch.cat((spec_features, eda_features), dim=1)
         fused_features = self.fusion(fused_features)
         
