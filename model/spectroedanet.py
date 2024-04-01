@@ -38,7 +38,12 @@ class SpectroEDANet(nn.Module):
         )
         
         # Fusion layer
-        self.fusion = nn.Linear(128 + 128, 256)
+        fusion_input_size = 0
+        if self.usesSpectrogram:
+            fusion_input_size += 128
+        if self.usesEDA:
+            fusion_input_size += 128
+        self.fusion = nn.Linear(fusion_input_size, 256)
         
         # Multi-Task Output layers
         self.arousal_output = nn.Linear(256, 10)
@@ -53,29 +58,29 @@ class SpectroEDANet(nn.Module):
         )
     
     def forward(self, spectrogram, eda_data):
+        # Initialize an empty tensor to store the fused features
+        fused_features = None
+
         # Spectrogram feature extraction
         if self.usesSpectrogram:
             spec_features = self.spec_cnn(spectrogram)
+            fused_features = spec_features
         
         # EDA feature extraction
         if self.usesEDA:
             eda_features = self.eda_cnn(eda_data)
+            if fused_features is None:
+                fused_features = eda_features
+            else:
+                fused_features = torch.cat((fused_features, eda_features), dim=1)
         
         # Fusion of spectrogram and EDA features
-        if self.usesSpectrogram and self.usesEDA:
-            fused_features = torch.cat((spec_features, eda_features), dim=1)
-            fused_features = self.fusion(fused_features)
-        elif self.usesSpectrogram and not self.usesEDA:
-            fused_features = spec_features
-        elif self.usesEDA and not self.usesSpectrogram:
-            fused_features = eda_features
+        fused_features = self.fusion(fused_features)
 
         # Output layers    
         if self.predictsArousal and self.predictsValence:
             arousal_output = self.arousal_output(fused_features)
             valence_output = self.valence_output(fused_features)
             return arousal_output, valence_output
-        elif self.predictsArousal and not self.predictsValence:
-            return self.output(fused_features)
-        elif not self.predictsArousal and self.predictsValence:
+        else:
             return self.output(fused_features)
