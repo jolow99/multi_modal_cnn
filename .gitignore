@@ -3,3 +3,7 @@ venv
 loader/__pycache__/
 model/__pycache__/
 .idea
+PMEmo2019
+dataset/wav
+__pycache__
+*.arff

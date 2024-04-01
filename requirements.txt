@@ -7,3 +7,5 @@ pandas
 pillow
 scipy
 scikit-learn
+pydub
+liac-arff
