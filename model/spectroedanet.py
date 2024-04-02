@@ -1,15 +1,23 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class SpectroEDANet(nn.Module):
-    def __init__(self, usesSpectrogram=True, usesEDA=True, usesMusic=True, predictsArousal=True, predictsValence=True):
+    def __init__(self,
+                 usesSpectrogram=True,
+                 usesEDA=True,
+                 usesMusic=True,
+                 predictsArousal=True,
+                 predictsValence=True,
+                 usesMusicLSTM=True):
         super(SpectroEDANet, self).__init__()
         self.usesSpectrogram = usesSpectrogram
         self.usesEDA = usesEDA
         self.usesMusic = usesMusic
         self.predictsArousal = predictsArousal
         self.predictsValence = predictsValence
+        self.usesMusicLSTM = usesMusicLSTM
 
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
@@ -38,13 +46,19 @@ class SpectroEDANet(nn.Module):
             nn.Flatten()
         )
 
+        music_features = 319
         self.music_cnn = nn.Sequential(
-            nn.Linear(6373, 1024),
+            nn.Linear(music_features, 1024),
             nn.ReLU(),
             nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Linear(512, 128)
         )
+        # LSTM model inspired by this paper: https://www.sciencedirect.com/science/article/pii/S2215098620342385
+        lstm_hidden_size = 200
+        self.music_lstm = nn.LSTM(music_features, lstm_hidden_size, batch_first=True)
+        self.music_fc1 = nn.Linear(lstm_hidden_size, 128)
+        self.music_fc2 = nn.Linear(128, 128)
 
         # Fusion layer
         fusion_input_size = 0
@@ -89,7 +103,14 @@ class SpectroEDANet(nn.Module):
             fused_features.append(eda_features)
 
         if self.usesMusic:
-            music_features = self.music_cnn(music_vector)
+            if self.usesMusicLSTM:
+                music_features = music_vector.unsqueeze(1)
+                lstm_out, _ = self.music_lstm(music_features)
+                music_features = lstm_out[:, -1, :]
+                music_features = F.relu(self.music_fc1(music_features))
+                music_features = F.relu(self.music_fc2(music_features))
+            else:
+                music_features = self.music_cnn(music_vector)
             fused_features.append(music_features)
 
         # Fusion of spectrogram and EDA features

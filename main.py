@@ -16,13 +16,19 @@ usesEDA = True
 usesMusic = True
 predictsArousal = True
 predictsValence = True
+usesMusicLSTM = False
 
 # Ensure that predictArousal and predictValence are not both False
 assert predictsArousal or predictsValence
 # Ensure that at least one of usesSpectrogram, usesEDA, and usesMusic is True
 assert usesSpectrogram or usesEDA or usesMusic
 
-model = spectroedanet.SpectroEDANet(usesSpectrogram, usesEDA, usesMusic, predictsArousal, predictsValence)
+model = spectroedanet.SpectroEDANet(usesSpectrogram,
+                                    usesEDA,
+                                    usesMusic,
+                                    predictsArousal,
+                                    predictsValence,
+                                    usesMusicLSTM)
 
 # Define loss function and optimizer
 criterion = nn.MSELoss()
