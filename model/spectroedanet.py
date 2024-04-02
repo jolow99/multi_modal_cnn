@@ -14,12 +14,15 @@ class SpectroEDANet(nn.Module):
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32), 
             nn.ReLU(),
             nn.MaxPool2d(2),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64), 
             nn.ReLU(),
             nn.MaxPool2d(2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128), 
             nn.ReLU(),
             nn.MaxPool2d(2),
             nn.AdaptiveAvgPool2d((1, 1)),
@@ -29,9 +32,11 @@ class SpectroEDANet(nn.Module):
         # EDA CNN
         self.eda_cnn = nn.Sequential(
             nn.Conv1d(10, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64), 
             nn.ReLU(),
             nn.MaxPool1d(2),
             nn.Conv1d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm1d(128), 
             nn.ReLU(),
             nn.MaxPool1d(2),
             nn.AdaptiveAvgPool1d(1),
@@ -40,10 +45,13 @@ class SpectroEDANet(nn.Module):
 
         self.music_cnn = nn.Sequential(
             nn.Linear(6373, 1024),
+            nn.BatchNorm1d(1024), 
             nn.ReLU(),
             nn.Linear(1024, 512),
+            nn.BatchNorm1d(512), 
             nn.ReLU(),
-            nn.Linear(512, 128)
+            nn.Linear(512, 128),
+            nn.BatchNorm1d(128), 
         )
 
         # Fusion layer
@@ -94,6 +102,8 @@ class SpectroEDANet(nn.Module):
 
         # Fusion of spectrogram and EDA features
         fused_features = torch.cat(tuple(fused_features), dim=1)
+        # Element-wise addition of features
+        # fused_features = spec_features + eda_features + music_features    
         fused_features = self.fusion(fused_features)
 
         # Output layers    

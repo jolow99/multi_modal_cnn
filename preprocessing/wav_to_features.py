@@ -38,7 +38,7 @@ def wav_to_features(normalize=True):
         # do z-score normalization
         df = (df-df.mean())/df.std()
 
-    df.to_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv", index=True)
+    df.to_csv("C:/Users/ankit/multi_modal_cnn/dataset/static_features.csv", index=True)
 
 
 if __name__ == "__main__":
