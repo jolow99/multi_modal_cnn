@@ -39,7 +39,7 @@ class SpectroEDANet(nn.Module):
         )
 
         self.music_cnn = nn.Sequential(
-            nn.Linear(6373, 1024),
+            nn.Linear(319, 1024),
             nn.ReLU(),
             nn.Linear(1024, 512),
             nn.ReLU(),

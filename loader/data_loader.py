@@ -6,7 +6,15 @@ from PIL import Image
 import json
 from scipy.interpolate import interp1d
 import pandas as pd
+from sklearn.feature_selection import SelectPercentile, mutual_info_regression
 
+
+def multi_target_score(X, y):
+    scores = []
+    for i in range(y.shape[1]):  # Iterate over each target
+        score = mutual_info_regression(X, y[:, i])
+        scores.append(score)
+    return np.mean(scores, axis=0)
 
 class PMEmoDataset(data.Dataset):
     def __init__(self, root_dir):
@@ -17,6 +25,17 @@ class PMEmoDataset(data.Dataset):
         self.music_ids = self._get_music_ids()
         self.music_df = pd.read_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv",
                                index_col="musicId")
+
+        # feature selection for music_df
+        feature_selector = SelectPercentile(multi_target_score, percentile=5)
+        target_cols = ['target_arousal', 'target_valence']
+        y = self.music_df[target_cols]
+        X = self.music_df.drop(columns=target_cols)
+        # resultant music_df does not have target columns, target cols are purely for feature selection
+        feature_selector.fit(X, y)
+        selected_features_mask = feature_selector.get_support()
+        selected_cols = X.columns[selected_features_mask]
+        self.music_df = X[selected_cols]
 
     def __len__(self):
         return len(self.music_ids)
@@ -86,7 +105,7 @@ class PMEmoDataset(data.Dataset):
         valence_labels = torch.tensor(valence_labels, dtype=torch.float32)
 
         # opensmile music features
-        music_features = self.music_df.loc[self.music_df.index == 1000].iloc[0]  # here is pandas type series
+        music_features = self.music_df.loc[self.music_df.index == int(music_id)].iloc[0]  # here is pandas type series
         music_vector = torch.tensor(np.array(music_features))
 
         return spectrogram, eda_data, arousal_labels, valence_labels, music_vector
