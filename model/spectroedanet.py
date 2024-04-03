@@ -9,15 +9,13 @@ class SpectroEDANet(nn.Module):
                  usesEDA=True,
                  usesMusic=True,
                  predictsArousal=True,
-                 predictsValence=True,
-                 usesMusicLSTM=True):
+                 predictsValence=True):
         super(SpectroEDANet, self).__init__()
         self.usesSpectrogram = usesSpectrogram
         self.usesEDA = usesEDA
         self.usesMusic = usesMusic
         self.predictsArousal = predictsArousal
         self.predictsValence = predictsValence
-        self.usesMusicLSTM = usesMusicLSTM
 
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
@@ -47,15 +45,8 @@ class SpectroEDANet(nn.Module):
         )
 
         music_features = 319
-        self.music_cnn = nn.Sequential(
-            nn.Linear(music_features, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Linear(512, 128)
-        )
-        # LSTM model inspired by this paper: https://www.sciencedirect.com/science/article/pii/S2215098620342385
         lstm_hidden_size = 200
+        # LSTM model inspired by this paper: https://www.sciencedirect.com/science/article/pii/S2215098620342385
         self.music_lstm = nn.LSTM(music_features, lstm_hidden_size, batch_first=True)
         self.music_fc1 = nn.Linear(lstm_hidden_size, 128)
         self.music_fc2 = nn.Linear(128, 128)
@@ -103,21 +94,18 @@ class SpectroEDANet(nn.Module):
             fused_features.append(eda_features)
 
         if self.usesMusic:
-            if self.usesMusicLSTM:
-                music_features = music_vector.unsqueeze(1)
-                lstm_out, _ = self.music_lstm(music_features)
-                music_features = lstm_out[:, -1, :]
-                music_features = F.relu(self.music_fc1(music_features))
-                music_features = F.relu(self.music_fc2(music_features))
-            else:
-                music_features = self.music_cnn(music_vector)
+            music_features = music_vector.unsqueeze(1)
+            lstm_out, _ = self.music_lstm(music_features)
+            music_features = lstm_out[:, -1, :]
+            music_features = F.relu(self.music_fc1(music_features))
+            music_features = F.relu(self.music_fc2(music_features))
             fused_features.append(music_features)
 
         # Fusion of spectrogram and EDA features
         fused_features = torch.cat(tuple(fused_features), dim=1)
         fused_features = self.fusion(fused_features)
 
-        # Output layers    
+        # Output layers
         if self.predictsArousal and self.predictsValence:
             arousal_output = self.arousal_output(fused_features)
             valence_output = self.valence_output(fused_features)
