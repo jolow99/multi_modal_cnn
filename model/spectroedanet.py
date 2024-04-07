@@ -79,6 +79,9 @@ class SpectroEDANet(nn.Module):
             nn.ReLU(inplace=True)
         )
 
+    def __str__(self):
+        return f'Model with params: usesSpectrogram = {self.usesSpectrogram}, usesEDA = {self.usesEDA}, usesMusic = {self.usesMusic}'
+
     def forward(self, spectrogram, eda_data, music_vector):
         # Initialize an empty tensor to store the fused features
         fused_features = []
