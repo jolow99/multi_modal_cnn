@@ -14,6 +14,7 @@ dataset = PMEmoDataset(root_dir)
 usesSpectrogram = True
 usesEDA = True
 usesMusic = True
+usesAttention = True
 predictsArousal = True
 predictsValence = True
 
@@ -22,7 +23,7 @@ assert predictsArousal or predictsValence
 # Ensure that at least one of usesSpectrogram, usesEDA, and usesMusic is True
 assert usesSpectrogram or usesEDA or usesMusic
 
-model = spectroedanet.SpectroEDANet(usesSpectrogram, usesEDA, usesMusic, predictsArousal, predictsValence)
+model = spectroedanet.SpectroEDANet(usesSpectrogram, usesEDA, usesMusic, usesAttention, predictsArousal, predictsValence)
 
 # Define loss function and optimizer
 criterion = nn.MSELoss()
