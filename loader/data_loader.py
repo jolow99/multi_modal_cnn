@@ -23,7 +23,7 @@ class PMEmoDataset(data.Dataset):
         self.eda_dir = os.path.join(root_dir, "eda")
         self.spectrograms_dir = os.path.join(root_dir, "spectrograms")
         self.music_ids = self._get_music_ids()
-        self.music_df = pd.read_csv("/Users/joel-tay/Desktop/multi_modal_cnn/dataset/static_features.csv",
+        self.music_df = pd.read_csv("./dataset/static_features.csv",
                                index_col="musicId")
 
         # feature selection for music_df
@@ -38,9 +38,14 @@ class PMEmoDataset(data.Dataset):
         self.music_df = X[selected_cols]
 
     def __len__(self):
-        return len(self.music_ids)
+        # print(len(self.music_ids))
+        dataset_length = len(self.music_ids) * 10
+        # print(dataset_length)
+        return dataset_length
 
     def __getitem__(self, index):
+        valence_arousal_index = index % 10
+        index = index // 10
         music_id = self.music_ids[index]
 
         # Load annotations
@@ -52,23 +57,17 @@ class PMEmoDataset(data.Dataset):
         subject_ids = []
 
         with open(arousal_file, 'r') as file:
-            next(file)
-            for line in file:
-                values = line.split(',')
-                subject_ids.append(values[0])
-                arousal_labels.append(float(values[1]))
+            line = file.readlines()[valence_arousal_index+1].strip()
+            values = line.split(',')
+            subject_ids.append(values[0])
+            arousal_value = float(values[1])
+            arousal_labels.append(arousal_value)
 
         with open(valence_file, 'r') as file:
-            next(file)
-            for line in file:
-                values = line.split(',')
-                valence_labels.append(float(values[1]))
-
-        # If there are more than 10 subjects, only take the first 10
-        if len(subject_ids) > 10:
-            subject_ids = subject_ids[:10]
-            arousal_labels = arousal_labels[:10]
-            valence_labels = valence_labels[:10]
+            line = file.readlines()[valence_arousal_index+1].strip()
+            values = line.split(',')
+            valence_value = float(values[1])
+            valence_labels.append(valence_value)
 
         # Load EDA data
         eda_data = []
