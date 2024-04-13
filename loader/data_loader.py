@@ -35,8 +35,9 @@ class PMEmoDataset(data.Dataset):
         # resultant music_df does not have target columns, target cols are purely for feature selection
         feature_selector.fit(X, y)
         selected_features_mask = feature_selector.get_support()
-        # TODO: store these selected_cols in file so our app can choose the correct cols in preprocessing stage
         selected_cols = X.columns[selected_features_mask]
+        # store these selected_cols in file so our app can choose the correct cols in preprocessing stage
+        pd.DataFrame(selected_cols).to_csv("selected_music_features.csv", index=False, header=False)
         self.music_df = X[selected_cols]
 
     def __len__(self):
