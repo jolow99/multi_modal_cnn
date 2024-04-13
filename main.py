@@ -233,4 +233,7 @@ def main(usesSpectrogram=True,
 
 
 if __name__ == '__main__':
-    main()
+    res = main()
+    best_model_weights = res[1]
+    print('Saving best model...')
+    torch.save(best_model_weights, 'best_model.pt')

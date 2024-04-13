@@ -34,7 +34,7 @@ class SpectroEDANet(nn.Module):
 
         # EDA CNN
         self.eda_cnn = nn.Sequential(
-            nn.Conv1d(10, 64, kernel_size=3, padding=1),
+            nn.Conv1d(1, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool1d(2),
             nn.Conv1d(64, 128, kernel_size=3, padding=1),
@@ -65,17 +65,17 @@ class SpectroEDANet(nn.Module):
         self.fusion = nn.Linear(fusion_input_size, 256)
 
         # Multi-Task Output layers
-        # self.arousal_output = nn.Linear(fusion_input_size, 10)
-        # self.valence_output = nn.Linear(fusion_input_size, 10)
-        self.arousal_output = nn.Linear(256, 10)
-        self.valence_output = nn.Linear(256, 10)
+        # self.arousal_output = nn.Linear(fusion_input_size, 1)
+        # self.valence_output = nn.Linear(fusion_input_size, 1)
+        self.arousal_output = nn.Linear(256, 1)
+        self.valence_output = nn.Linear(256, 1)
 
         # Single-Task Output layer
         self.output = nn.Sequential(
             # nn.Linear(fusion_input_size, 128),
             nn.Linear(256, 128),
             nn.ReLU(inplace=True),
-            nn.Linear(128, 10),
+            nn.Linear(128, 1),
             nn.ReLU(inplace=True)
         )
 
