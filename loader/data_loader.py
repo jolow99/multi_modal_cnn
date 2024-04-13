@@ -16,6 +16,7 @@ def multi_target_score(X, y):
         scores.append(score)
     return np.mean(scores, axis=0)
 
+
 class PMEmoDataset(data.Dataset):
     def __init__(self, root_dir):
         self.root_dir = root_dir
@@ -24,7 +25,7 @@ class PMEmoDataset(data.Dataset):
         self.spectrograms_dir = os.path.join(root_dir, "spectrograms")
         self.music_ids = self._get_music_ids()
         self.music_df = pd.read_csv("./dataset/static_features.csv",
-                               index_col="musicId")
+                                    index_col="musicId")
 
         # feature selection for music_df
         feature_selector = SelectPercentile(multi_target_score, percentile=5)
@@ -34,6 +35,7 @@ class PMEmoDataset(data.Dataset):
         # resultant music_df does not have target columns, target cols are purely for feature selection
         feature_selector.fit(X, y)
         selected_features_mask = feature_selector.get_support()
+        # TODO: store these selected_cols in file so our app can choose the correct cols in preprocessing stage
         selected_cols = X.columns[selected_features_mask]
         self.music_df = X[selected_cols]
 
@@ -43,9 +45,9 @@ class PMEmoDataset(data.Dataset):
         # print(dataset_length)
         return dataset_length
 
-    def __getitem__(self, index):
-        valence_arousal_index = index % 10
-        index = index // 10
+    def __getitem__(self, i):
+        valence_arousal_index = i % 10
+        index = i // 10
         music_id = self.music_ids[index]
 
         # Load annotations
@@ -57,14 +59,14 @@ class PMEmoDataset(data.Dataset):
         subject_ids = []
 
         with open(arousal_file, 'r') as file:
-            line = file.readlines()[valence_arousal_index+1].strip()
+            line = file.readlines()[valence_arousal_index + 1].strip()
             values = line.split(',')
             subject_ids.append(values[0])
             arousal_value = float(values[1])
             arousal_labels.append(arousal_value)
 
         with open(valence_file, 'r') as file:
-            line = file.readlines()[valence_arousal_index+1].strip()
+            line = file.readlines()[valence_arousal_index + 1].strip()
             values = line.split(',')
             valence_value = float(values[1])
             valence_labels.append(valence_value)
