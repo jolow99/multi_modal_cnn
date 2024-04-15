@@ -8,6 +8,7 @@ from model import spectroedanet
 from sklearn.model_selection import KFold
 from sklearn.metrics import root_mean_squared_error, r2_score
 from copy import deepcopy
+from datetime import datetime
 
 root_dir = "dataset"
 dataset = PMEmoDataset(root_dir)
@@ -25,8 +26,8 @@ def unpack_data(data, device: torch.device):
 
 # Instantiate the model
 def main(usesSpectrogram=True,
-         usesEDA=True,
-         usesMusic=True,
+         usesEDA=False,
+         usesMusic=False,
          predictsArousal=True,
          predictsValence=True) -> (
         tuple[
@@ -59,15 +60,15 @@ def main(usesSpectrogram=True,
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 10
+    num_epochs = 2
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # Define the number of folds for cross-validation
-    num_folds = 5
+    num_folds = 2
 
-    batch_size = 16
+    batch_size = 2
 
     # Create a KFold object
     kfold = KFold(n_splits=num_folds, shuffle=True)
@@ -220,6 +221,24 @@ def main(usesSpectrogram=True,
     # plot average losses (epoch-average, across folds)
     avg_train_losses = [sum(epoch_losses) / len(epoch_losses) for epoch_losses in zip(*train_losses.values())]
     avg_val_losses = [sum(epoch_losses) / len(epoch_losses) for epoch_losses in zip(*val_losses.values())]
+    
+    # Save model weights
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # store the file in the checkpoints folder. the file name should use the boolean flags that are inputs to the main functions and end with the timestamp
+    filename = 'checkpoints/model_weights_'
+    if usesSpectrogram:
+        filename += 'usesSpectrogram_'
+    if usesEDA:
+        filename += 'usesEDA_'
+    if usesMusic:
+        filename += 'usesMusic_'
+    if predictsArousal:
+        filename += 'predictsArousal_'
+    if predictsValence:
+        filename += 'predictsValence_'
+    filename += f'{timestamp}.pt'
+
+    torch.save(model.state_dict(), filename)
 
     # return best params and losses
     return (model,
