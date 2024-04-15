@@ -5,7 +5,7 @@ import torch.optim as optim
 from loader.data_loader import PMEmoDataset
 import torch.utils.data as torch_data
 from model import spectroedanet
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.metrics import root_mean_squared_error, r2_score
 from copy import deepcopy
 from datetime import datetime
@@ -54,6 +54,9 @@ def main(usesSpectrogram=True,
                                         usesMusic,
                                         predictsArousal,
                                         predictsValence)
+    
+    # Split the dataset into training and testing sets
+    train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()
@@ -87,7 +90,7 @@ def main(usesSpectrogram=True,
     val_losses = {i: [] for i in range(num_folds)}
 
     # Iterate over the folds
-    for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
+    for fold, (train_idx, val_idx) in enumerate(kfold.split(train_val_dataset)):
         if best_found:
             break
 
@@ -96,8 +99,8 @@ def main(usesSpectrogram=True,
         # Create data loaders for the current fold
         train_sampler = torch_data.SubsetRandomSampler(train_idx)
         val_sampler = torch_data.SubsetRandomSampler(val_idx)
-        train_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
-        val_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=val_sampler)
+        train_loader = torch_data.DataLoader(train_val_dataset, batch_size=batch_size, sampler=train_sampler)
+        val_loader = torch_data.DataLoader(train_val_dataset, batch_size=batch_size, sampler=val_sampler)
 
         # Reset the model weights
         model.apply(lambda m: isinstance(m, nn.Linear) and m.reset_parameters())
@@ -238,6 +241,7 @@ def main(usesSpectrogram=True,
         filename += 'predictsValence_'
     filename += f'{timestamp}.pt'
 
+    print('Saving best model...')
     torch.save(model.state_dict(), filename)
 
     # return best params and losses
@@ -253,6 +257,3 @@ def main(usesSpectrogram=True,
 
 if __name__ == '__main__':
     res = main()
-    best_model_weights = res[1]
-    print('Saving best model...')
-    torch.save(best_model_weights, 'best_model.pt')
