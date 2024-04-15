@@ -22,15 +22,18 @@ class SpectroEDANet(nn.Module):
 
         # Spectrogram CNN
         self.spec_cnn = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.BatchNorm2d(64),
+            nn.MaxPool2d(2,2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.BatchNorm2d(128),
+            nn.MaxPool2d(2,2),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.MaxPool2d(2,2),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten()
         )
@@ -115,6 +118,7 @@ class SpectroEDANet(nn.Module):
             # nn.Linear(fusion_input_size, 128),
             nn.Linear(256, 128),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=0.1),
             nn.Linear(128, 1),
             nn.ReLU(inplace=True)
         )
