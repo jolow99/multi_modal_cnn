@@ -5,9 +5,10 @@ import torch.optim as optim
 from loader.data_loader import PMEmoDataset
 import torch.utils.data as torch_data
 from model import spectroedanet
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.metrics import root_mean_squared_error, r2_score
 from copy import deepcopy
+from datetime import datetime
 
 root_dir = "dataset"
 dataset = PMEmoDataset(root_dir)
@@ -25,8 +26,8 @@ def unpack_data(data, device: torch.device):
 
 # Instantiate the model
 def main(usesSpectrogram=True,
-         usesEDA=True,
-         usesMusic=True,
+         usesEDA=False,
+         usesMusic=False,
          usesAttention = True,
          predictsArousal=True,
          predictsValence=True) -> (
@@ -55,21 +56,24 @@ def main(usesSpectrogram=True,
                                         usesAttention,
                                         predictsArousal,
                                         predictsValence)
+    
+    # Split the dataset into training and testing sets
+    train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 10
+    num_epochs = 2
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # Define the number of folds for cross-validation
-    num_folds = 5
+    num_folds = 2
 
-    batch_size = 16
+    batch_size = 2
 
     # Create a KFold object
     kfold = KFold(n_splits=num_folds, shuffle=True)
@@ -88,7 +92,7 @@ def main(usesSpectrogram=True,
     val_losses = {i: [] for i in range(num_folds)}
 
     # Iterate over the folds
-    for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
+    for fold, (train_idx, val_idx) in enumerate(kfold.split(train_val_dataset)):
         if best_found:
             break
 
@@ -97,8 +101,8 @@ def main(usesSpectrogram=True,
         # Create data loaders for the current fold
         train_sampler = torch_data.SubsetRandomSampler(train_idx)
         val_sampler = torch_data.SubsetRandomSampler(val_idx)
-        train_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
-        val_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=val_sampler)
+        train_loader = torch_data.DataLoader(train_val_dataset, batch_size=batch_size, sampler=train_sampler)
+        val_loader = torch_data.DataLoader(train_val_dataset, batch_size=batch_size, sampler=val_sampler)
 
         # Reset the model weights
         model.apply(lambda m: isinstance(m, nn.Linear) and m.reset_parameters())
@@ -222,6 +226,25 @@ def main(usesSpectrogram=True,
     # plot average losses (epoch-average, across folds)
     avg_train_losses = [sum(epoch_losses) / len(epoch_losses) for epoch_losses in zip(*train_losses.values())]
     avg_val_losses = [sum(epoch_losses) / len(epoch_losses) for epoch_losses in zip(*val_losses.values())]
+    
+    # Save model weights
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # store the file in the checkpoints folder. the file name should use the boolean flags that are inputs to the main functions and end with the timestamp
+    filename = 'checkpoints/model_weights_'
+    if usesSpectrogram:
+        filename += 'usesSpectrogram_'
+    if usesEDA:
+        filename += 'usesEDA_'
+    if usesMusic:
+        filename += 'usesMusic_'
+    if predictsArousal:
+        filename += 'predictsArousal_'
+    if predictsValence:
+        filename += 'predictsValence_'
+    filename += f'{timestamp}.pt'
+
+    print('Saving best model...')
+    torch.save(model.state_dict(), filename)
 
     # return best params and losses
     return (model,
@@ -236,6 +259,3 @@ def main(usesSpectrogram=True,
 
 if __name__ == '__main__':
     res = main()
-    best_model_weights = res[1]
-    print('Saving best model...')
-    torch.save(best_model_weights, 'best_model.pt')
