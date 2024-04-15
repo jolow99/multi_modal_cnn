@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from model.Attention_module import NONLocal1D, CALayer1D, NONLocal2D, CALayer2D
 
+device = torch.device(
+        "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 
 class SpectroEDANet(nn.Module):
     def __init__(self,
@@ -88,6 +90,7 @@ class SpectroEDANet(nn.Module):
             )
 
         music_features = 319
+        # music_features = 64
         lstm_hidden_size = 200
         # LSTM model inspired by this paper: https://www.sciencedirect.com/science/article/pii/S2215098620342385
         self.music_lstm = nn.LSTM(music_features, lstm_hidden_size, batch_first=True)
@@ -161,11 +164,11 @@ class SpectroEDANet(nn.Module):
             fused_features.append(music_features)
 
         # Fusion of spectrogram and EDA features
-        if self.usesAttention != True:
+        if not self.usesAttention:
             fused_features = torch.cat(tuple(fused_features), dim=1)
             fused_features = self.fusion(fused_features)
-
-        if self.usesAttention:
+        else:
+            # NOTE: attention NEEDS eda, music AND spec
             eda_features_reshaped = eda_features.unsqueeze(2).expand(-1, -1, 92, -1)
             fused_features = torch.cat((spec_features, eda_features_reshaped), dim=3)
             #print(fused_features.shape)
@@ -176,7 +179,7 @@ class SpectroEDANet(nn.Module):
             fused_features = fused_features.view(fused_features.size(0), -1) 
             #print(fused_features.shape)
             
-            self.fusion = nn.Linear(256, 256)
+            self.fusion = nn.Linear(256, 256).to(device)
             fused_features = self.fusion(fused_features)
 
         # Output layers

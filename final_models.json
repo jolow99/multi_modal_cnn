@@ -1,1 +1,9 @@
-["model_weights_usesSpectrogram_predictsArousal_predictsValence_20240415_214954.pt"]
+[
+  "model_weights_usesSpectrogram_predictsArousal_predictsValence_.pt",
+  "model_weights_usesMusic_predictsArousal_predictsValence_.pt",
+  "model_weights_usesEDA_predictsArousal_predictsValence_.pt",
+  "model_weights_usesEDA_usesMusic_predictsArousal_predictsValence_.pt",
+  "model_weights_usesSpectrogram_usesMusic_predictsArousal_predictsValence_.pt",
+  "model_weights_usesSpectrogram_usesEDA_predictsArousal_predictsValence_.pt",
+  "model_weights_usesSpectrogram_usesEDA_usesMusic_predictsArousal_predictsValence_.pt"
+]

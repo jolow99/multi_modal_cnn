@@ -7,6 +7,7 @@ from loader.data_loader import PMEmoDataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import root_mean_squared_error, r2_score
 
+
 def unpack_data(data, device: torch.device):
     spectrogram, eda_data, arousal_label, valence_label, music_vector = data
     spectrogram = spectrogram.to(device)
@@ -16,13 +17,15 @@ def unpack_data(data, device: torch.device):
     music_vector = music_vector.to(device=device, dtype=torch.float32)
     return spectrogram, eda_data, arousal_label, valence_label, music_vector
 
-def evaluate_model(model_run):
+
+def evaluate_model(model_run, test_loader):
     print("Evaluating Model: ", model_run)
     flags = model_run.split('_')
 
     usesSpectrogram = False
     usesEDA = False
     usesMusic = False
+    usesAttention = False
     predictsArousal = False
     predictsValence = False
 
@@ -33,6 +36,8 @@ def evaluate_model(model_run):
             usesEDA = True
         elif flag == 'usesMusic':
             usesMusic = True
+        elif flag == 'usesAttention':
+            usesAttention = True
         elif flag == 'predictsArousal':
             predictsArousal = True
         elif flag == 'predictsValence':
@@ -41,19 +46,17 @@ def evaluate_model(model_run):
     model = spectroedanet.SpectroEDANet(usesSpectrogram,
                                         usesEDA,
                                         usesMusic,
+                                        usesAttention,
                                         predictsArousal,
                                         predictsValence)
-    device = torch.device(
-        "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+    device_type = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device(device_type)
     model.to(device)
-    
-    # Load the weights from the checkpoints folder. The file is named model_run.pth
-    model.load_state_dict(torch.load(f'checkpoints/{model_run}'))
 
-    # Evaluate the model on the test set 
-    dataset = PMEmoDataset("dataset")
-    train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
-    test_loader = torch_data.DataLoader(test_dataset, batch_size=16)
+    # Load the weights from the checkpoints folder. The file is named model_run.pth
+    model.load_state_dict(torch.load(f'checkpoints/{model_run}', map_location=device_type))
+
+    # Evaluate the model on the test set
     model.eval()
 
     test_loss = 0.0
@@ -97,30 +100,35 @@ def evaluate_model(model_run):
             test_arousal_r2 = r2_score(arousal_labels, arousal_preds)
             test_valence_r2 = r2_score(valence_labels, valence_preds)
             print(f"Test Loss: {test_loss / len(test_loader):.4f}, "
-                f"Arousal RMSE: {test_arousal_rmse:.4f}, "
-                f"Valence RMSE: {test_valence_rmse:.4f}, "
-                f"Arousal R2: {test_arousal_r2:.4f}, "
-                f"Valence R2: {test_valence_r2:.4f}")
+                  f"Arousal RMSE: {test_arousal_rmse:.4f}, "
+                  f"Valence RMSE: {test_valence_rmse:.4f}, "
+                  f"Arousal R2: {test_arousal_r2:.4f}, "
+                  f"Valence R2: {test_valence_r2:.4f}")
 
         elif model.predictsArousal:
             test_arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
             test_arousal_r2 = r2_score(arousal_labels, arousal_preds)
             print(f"Test Loss: {test_loss / len(test_loader):.4f}, "
-                f"Arousal RMSE: {test_arousal_rmse:.4f}, "
-                f"Arousal R2: {test_arousal_r2:.4f}")
+                  f"Arousal RMSE: {test_arousal_rmse:.4f}, "
+                  f"Arousal R2: {test_arousal_r2:.4f}")
 
         elif model.predictsValence:
             test_valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
             test_valence_r2 = r2_score(valence_labels, valence_preds)
             print(f"Test Loss: {test_loss / len(test_loader):.4f}, "
-                f"Valence RMSE: {test_valence_rmse:.4f}, "
-                f"Valence R2: {test_valence_r2:.4f}")
+                  f"Valence RMSE: {test_valence_rmse:.4f}, "
+                  f"Valence R2: {test_valence_r2:.4f}")
 
 
 def test():
+    dataset = PMEmoDataset("dataset")
+    train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
+    test_loader = torch_data.DataLoader(test_dataset, batch_size=32)
     model_runs = json.load(open('final_models.json'))
-    for model_run in model_runs: 
-        evaluate_model(model_run)
+    for model_run in model_runs:
+        print(f'---------- {model_run} --------')
+        evaluate_model(model_run, test_loader)
+
 
 if __name__ == "__main__":
     test()
