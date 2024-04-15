@@ -28,6 +28,7 @@ def unpack_data(data, device: torch.device):
 def main(usesSpectrogram=True,
          usesEDA=False,
          usesMusic=False,
+         usesAttention = True,
          predictsArousal=True,
          predictsValence=True) -> (
         tuple[
@@ -52,6 +53,7 @@ def main(usesSpectrogram=True,
     model = spectroedanet.SpectroEDANet(usesSpectrogram,
                                         usesEDA,
                                         usesMusic,
+                                        usesAttention,
                                         predictsArousal,
                                         predictsValence)
     

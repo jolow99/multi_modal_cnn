@@ -24,7 +24,7 @@ class PMEmoDataset(data.Dataset):
         self.eda_dir = os.path.join(root_dir, "eda")
         self.spectrograms_dir = os.path.join(root_dir, "spectrograms")
         self.music_ids = self._get_music_ids()
-        self.music_df = pd.read_csv("./dataset/static_features.csv",
+        self.music_df = pd.read_csv("/Users/sucha/CDS/multi_modal_cnn/dataset/static_features.csv",
                                     index_col="musicId")
 
         # feature selection for music_df
