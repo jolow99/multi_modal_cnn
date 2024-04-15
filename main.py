@@ -32,7 +32,7 @@ def main(usesSpectrogram=True,
          predictsArousal=True,
          predictsValence=True) -> (
         tuple[
-            spectroedanet.SpectroEDANet,
+            SpectroEdaMusicNet,
             dict[str, Any],
             list[float],
             list[float],
@@ -117,14 +117,18 @@ def main(usesSpectrogram=True,
 
                 output = model(spectrogram, eda_data, music_vector)
 
-                if model.predictsArousal and model.predictsValence:
-                    arousal_loss = criterion(output[0], arousal_label)
-                    valence_loss = criterion(output[1], valence_label)
-                    loss = arousal_loss + valence_loss
-                elif model.predictsArousal:
-                    loss = criterion(output, arousal_label)
-                elif model.predictsValence:
-                    loss = criterion(output, valence_label)
+                # if model.predictsArousal and model.predictsValence:
+                #     arousal_loss = criterion(output[0], arousal_label)
+                #     valence_loss = criterion(output[1], valence_label)
+                #     loss = arousal_loss + valence_loss
+                # elif model.predictsArousal:
+                #     loss = criterion(output, arousal_label)
+                # elif model.predictsValence:
+                #     loss = criterion(output, valence_label)
+
+                arousal_loss = criterion(output[0], arousal_label)
+                valence_loss = criterion(output[1], valence_label)
+                loss = arousal_loss + valence_loss
 
                 loss.backward()
                 optimizer.step()
@@ -143,74 +147,99 @@ def main(usesSpectrogram=True,
                 for data in val_loader:
                     spectrogram, eda_data, arousal_label, valence_label, music_vector = unpack_data(data, device)
 
-                    if model.predictsArousal and model.predictsValence:
-                        arousal_output, valence_output = model(spectrogram, eda_data, music_vector)
-                        arousal_loss = criterion(arousal_output, arousal_label)
-                        valence_loss = criterion(valence_output, valence_label)
-                        val_loss += arousal_loss.item() + valence_loss.item()
-                        arousal_preds.extend(arousal_output.cpu().numpy())
-                        valence_preds.extend(valence_output.cpu().numpy())
-                        arousal_labels.extend(arousal_label.cpu().numpy())
-                        valence_labels.extend(valence_label.cpu().numpy())
+                    arousal_output, valence_output = model(spectrogram, eda_data, music_vector)
+                    arousal_loss = criterion(arousal_output, arousal_label)
+                    valence_loss = criterion(valence_output, valence_label)
+                    val_loss += arousal_loss.item() + valence_loss.item()
+                    arousal_preds.extend(arousal_output.cpu().numpy())
+                    valence_preds.extend(valence_output.cpu().numpy())
+                    arousal_labels.extend(arousal_label.cpu().numpy())
+                    valence_labels.extend(valence_label.cpu().numpy())
 
-                    elif model.predictsArousal:
-                        output = model(spectrogram, eda_data, music_vector)
-                        val_loss = criterion(output, arousal_label)
-                        arousal_preds.extend(output.cpu().numpy())
-                        arousal_labels.extend(arousal_label.cpu().numpy())
-
-                    elif model.predictsValence:
-                        output = model(spectrogram, eda_data, music_vector)
-                        val_loss = criterion(output, valence_label)
-                        valence_preds.extend(output.cpu().numpy())
-                        valence_labels.extend(valence_label.cpu().numpy())
+                    # if model.predictsArousal and model.predictsValence:
+                    #     arousal_output, valence_output = model(spectrogram, eda_data, music_vector)
+                    #     arousal_loss = criterion(arousal_output, arousal_label)
+                    #     valence_loss = criterion(valence_output, valence_label)
+                    #     val_loss += arousal_loss.item() + valence_loss.item()
+                    #     arousal_preds.extend(arousal_output.cpu().numpy())
+                    #     valence_preds.extend(valence_output.cpu().numpy())
+                    #     arousal_labels.extend(arousal_label.cpu().numpy())
+                    #     valence_labels.extend(valence_label.cpu().numpy())
+                    #
+                    # elif model.predictsArousal:
+                    #     output = model(spectrogram, eda_data, music_vector)
+                    #     val_loss = criterion(output, arousal_label)
+                    #     arousal_preds.extend(output.cpu().numpy())
+                    #     arousal_labels.extend(arousal_label.cpu().numpy())
+                    #
+                    # elif model.predictsValence:
+                    #     output = model(spectrogram, eda_data, music_vector)
+                    #     val_loss = criterion(output, valence_label)
+                    #     valence_preds.extend(output.cpu().numpy())
+                    #     valence_labels.extend(valence_label.cpu().numpy())
 
                 arousal_r2 = None
                 valence_r2 = None
                 # Calculate and print losses and metrics
-                if model.predictsArousal and model.predictsValence:
-                    arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
-                    valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
-                    arousal_r2 = r2_score(arousal_labels, arousal_preds)
-                    valence_r2 = r2_score(valence_labels, valence_preds)
+                arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
+                valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
+                arousal_r2 = r2_score(arousal_labels, arousal_preds)
+                valence_r2 = r2_score(valence_labels, valence_preds)
 
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Arousal RMSE: {arousal_rmse:.4f}, "
-                          f"Valence RMSE: {valence_rmse:.4f}, "
-                          f"Arousal R2: {arousal_r2:.4f}, "
-                          f"Valence R2: {valence_r2:.4f}")
-
-                elif model.predictsArousal:
-                    arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
-                    arousal_r2 = r2_score(arousal_labels, arousal_preds)
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Arousal RMSE: {arousal_rmse:.4f}, "
-                          f"Arousal R2: {arousal_r2:.4f}")
-
-                elif model.predictsValence:
-                    valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
-                    valence_r2 = r2_score(valence_labels, valence_preds)
-                    print(f"Epoch [{epoch + 1}/{num_epochs}], "
-                          f"Train Loss: {running_loss / len(train_loader):.4f}, "
-                          f"Val Loss: {val_loss / len(val_loader):.4f}, "
-                          f"Valence RMSE: {valence_rmse:.4f}, "
-                          f"Valence R2: {valence_r2:.4f}")
+                print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                      f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                      f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                      f"Arousal RMSE: {arousal_rmse:.4f}, "
+                      f"Valence RMSE: {valence_rmse:.4f}, "
+                      f"Arousal R2: {arousal_r2:.4f}, "
+                      f"Valence R2: {valence_r2:.4f}")
+                # if model.predictsArousal and model.predictsValence:
+                #     arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
+                #     valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
+                #     arousal_r2 = r2_score(arousal_labels, arousal_preds)
+                #     valence_r2 = r2_score(valence_labels, valence_preds)
+                #
+                #     print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                #           f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                #           f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                #           f"Arousal RMSE: {arousal_rmse:.4f}, "
+                #           f"Valence RMSE: {valence_rmse:.4f}, "
+                #           f"Arousal R2: {arousal_r2:.4f}, "
+                #           f"Valence R2: {valence_r2:.4f}")
+                #
+                # elif model.predictsArousal:
+                #     arousal_rmse = root_mean_squared_error(arousal_labels, arousal_preds)
+                #     arousal_r2 = r2_score(arousal_labels, arousal_preds)
+                #     print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                #           f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                #           f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                #           f"Arousal RMSE: {arousal_rmse:.4f}, "
+                #           f"Arousal R2: {arousal_r2:.4f}")
+                #
+                # elif model.predictsValence:
+                #     valence_rmse = root_mean_squared_error(valence_labels, valence_preds)
+                #     valence_r2 = r2_score(valence_labels, valence_preds)
+                #     print(f"Epoch [{epoch + 1}/{num_epochs}], "
+                #           f"Train Loss: {running_loss / len(train_loader):.4f}, "
+                #           f"Val Loss: {val_loss / len(val_loader):.4f}, "
+                #           f"Valence RMSE: {valence_rmse:.4f}, "
+                #           f"Valence R2: {valence_r2:.4f}")
 
                 if val_loss < best_val_loss:
                     # NOTE: here best_val_loss is stored as val_loss without dividing by its length
                     # it should however not have any impact as it is just a means to detect better model weights
                     best_val_loss = val_loss
                     best_model_weights = deepcopy(model.state_dict())
-                    if model.predictsArousal:
-                        best_arousal_r2 = arousal_r2
-                        best_arousal_rmse = arousal_rmse
-                    if model.predictsValence:
-                        best_valence_r2 = valence_r2
-                        best_valence_rmse = valence_rmse
+                    best_arousal_r2 = arousal_r2
+                    best_arousal_rmse = arousal_rmse
+                    est_valence_r2 = valence_r2
+                    best_valence_rmse = valence_rmse
+                    # if model.predictsArousal:
+                    #     best_arousal_r2 = arousal_r2
+                    #     best_arousal_rmse = arousal_rmse
+                    # if model.predictsValence:
+                    #     best_valence_r2 = valence_r2
+                    #     best_valence_rmse = valence_rmse
                     trials = 0
                 else:
                     trials += 1
