@@ -37,7 +37,7 @@ class SpectroEDANet(nn.Module):
 
         # EDA CNN
         self.eda_cnn = nn.Sequential(
-            nn.Conv1d(10, 64, kernel_size=3, padding=1),
+            nn.Conv1d(1, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool1d(2),
             nn.Conv1d(64, 128, kernel_size=3, padding=1),
@@ -73,7 +73,7 @@ class SpectroEDANet(nn.Module):
 
             # EDA CNN
             self.eda_cnn = nn.Sequential(
-                nn.Conv1d(10, 64, kernel_size=3, padding=1),
+                nn.Conv1d(1, 64, kernel_size=3, padding=1),
                 nn.ReLU(),
                 nn.MaxPool1d(2),
                 nn.Conv1d(64, 128, kernel_size=3, padding=1),
@@ -123,9 +123,9 @@ class SpectroEDANet(nn.Module):
         return f'Model with params: usesSpectrogram = {self.usesSpectrogram}, usesEDA = {self.usesEDA}, usesMusic = {self.usesMusic}, usesAttention = {self.usesAttention}'
 
     def forward(self, spectrogram, eda_data, music_vector):
-        print(spectrogram.shape)
-        print(eda_data.shape)
-        print(music_vector.shape)
+        #print(spectrogram.shape)
+        #print(eda_data.shape)
+        #print(music_vector.shape)
         # Initialize an empty tensor to store the fused features
         fused_features = []
 
@@ -164,13 +164,13 @@ class SpectroEDANet(nn.Module):
         if self.usesAttention:
             eda_features_reshaped = eda_features.unsqueeze(2).expand(-1, -1, 92, -1)
             fused_features = torch.cat((spec_features, eda_features_reshaped), dim=3)
-            print(fused_features.shape)
-            print(music_features.shape)
+            #print(fused_features.shape)
+            #print(music_features.shape)
             music_features_reshaped = music_features.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, 92, 572)
             fused_features = torch.cat((fused_features, music_features_reshaped), dim=1)
             fused_features = nn.AdaptiveAvgPool2d((1, 1))(fused_features)
             fused_features = fused_features.view(fused_features.size(0), -1) 
-            print(fused_features.shape)
+            #print(fused_features.shape)
             
             self.fusion = nn.Linear(256, 256)
             fused_features = self.fusion(fused_features)
