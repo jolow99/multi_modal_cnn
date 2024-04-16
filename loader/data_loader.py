@@ -24,19 +24,20 @@ class PMEmoDataset(data.Dataset):
         self.eda_dir = os.path.join(root_dir, "eda")
         self.spectrograms_dir = os.path.join(root_dir, "spectrograms")
         self.music_ids = self._get_music_ids()
-        self.music_df = pd.read_csv("/Users/sucha/CDS/multi_modal_cnn/dataset/static_features.csv",
+        self.music_df = pd.read_csv("./dataset/static_features.csv",
                                     index_col="musicId")
 
         # feature selection for music_df
-        feature_selector = SelectPercentile(multi_target_score, percentile=5)
+        feature_selector = SelectPercentile(multi_target_score, percentile=1)
         target_cols = ['target_arousal', 'target_valence']
         y = self.music_df[target_cols]
         X = self.music_df.drop(columns=target_cols)
         # resultant music_df does not have target columns, target cols are purely for feature selection
         feature_selector.fit(X, y)
         selected_features_mask = feature_selector.get_support()
-        # TODO: store these selected_cols in file so our app can choose the correct cols in preprocessing stage
         selected_cols = X.columns[selected_features_mask]
+        # store these selected_cols in file so our app can choose the correct cols in preprocessing stage
+        pd.DataFrame(selected_cols).to_csv("selected_music_features.csv", index=False, header=False)
         self.music_df = X[selected_cols]
 
     def __len__(self):

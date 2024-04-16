@@ -36,7 +36,11 @@ def wav_to_features(normalize=True):
 
     if normalize:
         # do z-score normalization
-        df = (df - df.mean()) / df.std()
+        mean = df.mean()
+        std = df.std()
+        mean.to_csv('features_mean.csv', header=None)
+        std.to_csv('features_std.csv', header=None)
+        df = (df - mean) / std
 
     annotations_dir = '/Users/joel-tay/Desktop/multi_modal_cnn/dataset/annotations'
     music_ids = []
