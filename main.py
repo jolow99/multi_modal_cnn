@@ -90,17 +90,11 @@ def main(usesSpectrogram=True,
     best_valence_r2: float | None = None
     best_arousal_rmse: float | None = None
     best_valence_rmse: float | None = None
-    trials = 0  # in this case trials is controlled model-level, not within each k-fold
-    patience = 15
-    best_found = False
     train_losses = {i: [] for i in range(num_folds)}
     val_losses = {i: [] for i in range(num_folds)}
 
     # Iterate over the folds
     for fold, (train_idx, val_idx) in enumerate(kfold.split(train_val_dataset)):
-        if best_found:
-            break
-
         print(f"Fold {fold + 1}")
 
         # Create data loaders for the current fold
@@ -216,13 +210,6 @@ def main(usesSpectrogram=True,
                     if model.predictsValence:
                         best_valence_r2 = valence_r2
                         best_valence_rmse = valence_rmse
-                    trials = 0
-                else:
-                    trials += 1
-                    if trials >= patience:
-                        print("Early stopping triggered")
-                        best_found = True
-                        break
 
             # store losses for plotting
             train_losses[fold].append(running_loss / len(train_loader))
