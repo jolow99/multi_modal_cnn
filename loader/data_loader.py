@@ -28,7 +28,7 @@ class PMEmoDataset(data.Dataset):
                                     index_col="musicId")
 
         # feature selection for music_df
-        feature_selector = SelectPercentile(multi_target_score, percentile=5)
+        feature_selector = SelectPercentile(multi_target_score, percentile=1)
         target_cols = ['target_arousal', 'target_valence']
         y = self.music_df[target_cols]
         X = self.music_df.drop(columns=target_cols)

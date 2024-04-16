@@ -89,8 +89,8 @@ class SpectroEDANet(nn.Module):
                 nn.BatchNorm1d(128)
             )
 
-        music_features = 319
-        # music_features = 64
+        # music_features = 319
+        music_features = 64
         lstm_hidden_size = 200
         # LSTM model inspired by this paper: https://www.sciencedirect.com/science/article/pii/S2215098620342385
         self.music_lstm = nn.LSTM(music_features, lstm_hidden_size, batch_first=True)
