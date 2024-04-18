@@ -50,7 +50,7 @@ def train_model(config=None):
                                         predictsArousal,
                                         predictsValence,
                                         dropout_p=config['dropout_p'],
-                                        fc_size=config['fc_size'])
+                                        fc_size=256)
 
     # Split the dataset into training and testing sets
     train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
@@ -62,7 +62,7 @@ def train_model(config=None):
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Load existing checkpoint through `get_checkpoint()` API.
     if train.get_checkpoint():
@@ -75,21 +75,21 @@ def train_model(config=None):
             optimizer.load_state_dict(optimizer_state)
 
     # Training loop
-    num_epochs = 50
+    num_epochs = 5
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # Train
-    writer = SummaryWriter()
-    writer.add_hparams({'lr': config['lr'],
-            'bsize': batch_size,
-            'fcsize': config['fc_size'],
-            'dropout': config['dropout_p']},
-            {'lr': config['lr'],
-            'bsize': batch_size,
-            'fcsize': config['fc_size'],
-            'dropout': config['dropout_p']})
+    # writer = SummaryWriter()
+    # writer.add_hparams({'lr': config['lr'],
+    #         'bsize': batch_size,
+    #         'fcsize': config['fc_size'],
+    #         'dropout': config['dropout_p']},
+    #         {'lr': config['lr'],
+    #         'bsize': batch_size,
+    #         'fcsize': config['fc_size'],
+    #         'dropout': config['dropout_p']})
     
     final_loss = None
     arousal_rmse = None
@@ -192,25 +192,25 @@ def train_model(config=None):
         val_loss = val_loss / len(val_loader)
         final_loss = val_loss
 
-        writer.add_scalar("loss x epoch", loss, epoch+1)
-        writer.add_scalar("arousal_rmse x epoch", arousal_rmse, epoch+1)
-        writer.add_scalar("valence_rmse x epoch", valence_rmse, epoch+1)
-        writer.add_scalar("arousal_r2 x epoch", arousal_r2, epoch+1)
-        writer.add_scalar("valence_r2 x epoch", valence_r2, epoch+1)
-    
-    writer.flush()
-    writer.close()
+        # writer.add_scalar("loss x epoch", loss, epoch+1)
+        # writer.add_scalar("arousal_rmse x epoch", arousal_rmse, epoch+1)
+        # writer.add_scalar("valence_rmse x epoch", valence_rmse, epoch+1)
+        # writer.add_scalar("arousal_r2 x epoch", arousal_r2, epoch+1)
+        # writer.add_scalar("valence_r2 x epoch", valence_r2, epoch+1)
 
-    with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
-        path = os.path.join(temp_checkpoint_dir, "checkpoint.pt")
-        torch.save(
-            (model.state_dict(), optimizer.state_dict()), path
-        )
-        checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
-        train.report(
-            {"arousal_rmse": arousal_rmse, "valence_rmse": valence_rmse, "arousal_r2": arousal_r2, "valence_r2": valence_r2, "loss": (final_loss)},
-            checkpoint=checkpoint,
-        )
+        with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
+            path = os.path.join(temp_checkpoint_dir, "checkpoint.pt")
+            torch.save(
+                (model.state_dict(), optimizer.state_dict()), path
+            )
+            checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
+            train.report(
+                {"arousal_rmse": arousal_rmse, "valence_rmse": valence_rmse, "arousal_r2": arousal_r2, "valence_r2": valence_r2, "loss": (final_loss)},
+                checkpoint=checkpoint,
+            )
+    
+    # writer.flush()
+    # writer.close()
 
     # Save model weights
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -239,14 +239,14 @@ def train_model(config=None):
 
 
 if __name__ == '__main__':    
-    num_samples = 10
+    num_samples = 2
     max_num_epochs = 100
     gpus_per_trial = 1
 
     config = {
     "dropout_p": tune.uniform(0.0, 0.5),
-    "lr": tune.loguniform(1e-6, 1e-2),
-    "fc_size": tune.sample_from(lambda _: 2**np.random.randint(5, 10)),
+    # "lr": tune.loguniform(1e-6, 1e-2),
+    # "fc_size": tune.sample_from(lambda _: 2**np.random.randint(5, 10)),
     }
 
     scheduler = ASHAScheduler(
