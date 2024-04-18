@@ -2,6 +2,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 from TuneFusionDataset import PMEmoDataset
 import torch.utils.data as torch_data
 from TuneFusionModel import SpectroEDANet
@@ -64,6 +65,12 @@ def train_model(config=None):
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    # LR scheduler
+    # scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.3, total_iters=30)
+    # scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=0.000001, max_lr=0.001,step_size_up=5,mode="triangular2")
+    scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=10, epochs=50)
+    lrs = []
+
     # Load existing checkpoint through `get_checkpoint()` API.
     if train.get_checkpoint():
         loaded_checkpoint = train.get_checkpoint()
@@ -75,7 +82,7 @@ def train_model(config=None):
             optimizer.load_state_dict(optimizer_state)
 
     # Training loop
-    num_epochs = 5
+    num_epochs = 50
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -116,10 +123,15 @@ def train_model(config=None):
             elif model.predictsValence:
                 loss = criterion(output, valence_label)
 
+            lrs.append(optimizer.param_groups[0]['lr'])
+
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
+
+        # Update learning rate
+        scheduler.step()
 
         # Evaluate on the validation set
         model.eval()
@@ -205,7 +217,9 @@ def train_model(config=None):
             )
             checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
             train.report(
-                {"arousal_rmse": arousal_rmse, "valence_rmse": valence_rmse, "arousal_r2": arousal_r2, "valence_r2": valence_r2, "loss": (final_loss)},
+                {"lr": lrs[-1], "arousal_r2": arousal_r2, 
+                 "valence_r2": valence_r2, "loss": (final_loss), 
+                 "arousal_rmse": arousal_rmse, "valence_rmse": valence_rmse,},
                 checkpoint=checkpoint,
             )
     
@@ -239,7 +253,7 @@ def train_model(config=None):
 
 
 if __name__ == '__main__':    
-    num_samples = 2
+    num_samples = 10
     max_num_epochs = 100
     gpus_per_trial = 1
 
