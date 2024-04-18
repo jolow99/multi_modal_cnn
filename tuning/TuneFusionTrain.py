@@ -22,9 +22,11 @@ import numpy as np
 # root_dir = "dataset"
 # dataset = PMEmoDataset(root_dir)
 
-lr = 0.00001
+lr = 0.001
 batch_size = 16
-# writer = SummaryWriter()  # hmm maybe this and the writer fx should be within the loop
+sampler = False  # Set to 'True' if you just want to test that the code is working
+num_samples = 16  # Number of samples to use in the sampler
+num_epochs = 20
 
 def unpack_data(data, device: torch.device):
     spectrogram, eda_data, arousal_label, valence_label, music_vector = data
@@ -50,25 +52,33 @@ def train_model(config=None):
                                         usesAttention,
                                         predictsArousal,
                                         predictsValence,
-                                        dropout_p=config['dropout_p'],
-                                        fc_size=256)
+                                        dropout_p=0.5,
+                                        fc_size=config['fc_size'])
 
     # Split the dataset into training and testing sets
     train_val_dataset, test_dataset = train_test_split(dataset, test_size=0.2, random_state=42)
     train_dataset, val_dataset = train_test_split(train_val_dataset, test_size=0.2, random_state=42)
 
     # Create data loaders
+    if sampler == True:
+        random_train_sampler = torch_data.RandomSampler(train_dataset, num_samples=num_samples)
+        train_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=random_train_sampler)
+
+        random_val_sampler = torch_data.RandomSampler(val_dataset, num_samples=num_samples)
+        val_loader = torch_data.DataLoader(dataset, batch_size=batch_size, sampler=random_val_sampler)
+
     train_loader = torch_data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
     val_loader = torch_data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
 
     # LR scheduler
     # scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.3, total_iters=30)
     # scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=0.000001, max_lr=0.001,step_size_up=5,mode="triangular2")
-    scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=10, epochs=50)
+    # scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=0.0001, total_steps=num_epochs)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=5, gamma=0.1)
     lrs = []
 
     # Load existing checkpoint through `get_checkpoint()` API.
@@ -82,7 +92,6 @@ def train_model(config=None):
             optimizer.load_state_dict(optimizer_state)
 
     # Training loop
-    num_epochs = 50
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -253,20 +262,20 @@ def train_model(config=None):
 
 
 if __name__ == '__main__':    
-    num_samples = 10
+    num_samples = 5
     max_num_epochs = 100
     gpus_per_trial = 1
 
     config = {
-    "dropout_p": tune.uniform(0.0, 0.5),
+    # "dropout_p": tune.grid_search([0.5, 0.4, 0.3, 0.2, 0.1])  # uniform(0.0, 0.5),
     # "lr": tune.loguniform(1e-6, 1e-2),
-    # "fc_size": tune.sample_from(lambda _: 2**np.random.randint(5, 10)),
+    "fc_size": tune.grid_search([32, 64, 128, 256, 512])  # sample_from(lambda _: 2**np.random.randint(5, 10)),
     }
 
-    scheduler = ASHAScheduler(
-        max_t=max_num_epochs,
-        grace_period=1,
-        reduction_factor=2)
+    # scheduler = ASHAScheduler(
+    #     max_t=max_num_epochs,
+    #     grace_period=1,
+    #     reduction_factor=2)
     
     tuner = tune.Tuner(
         tune.with_resources(
@@ -276,7 +285,7 @@ if __name__ == '__main__':
         tune_config=tune.TuneConfig(
             metric="arousal_r2",
             mode="max",
-            scheduler=scheduler,
+            # scheduler=scheduler,
             num_samples=num_samples,
         ),
         param_space=config,
